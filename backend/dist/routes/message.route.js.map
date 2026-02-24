@@ -1,0 +1,1 @@
+{"version":3,"file":"message.route.js","sourceRoot":"","sources":["../../src/routes/message.route.ts"],"names":[],"mappings":";;;;;AAAA,sDAA8B;AAC9B,mEAAiE;AACjE,0EAA6E;AAE7E,MAAM,MAAM,GAAG,iBAAO,CAAC,MAAM,EAAE,CAAC;AAEhC,MAAM,CAAC,IAAI,CAAC,GAAG,EAAC,kCAAgB,EAAE,gCAAW,CAAC,CAAC;AAC/C,MAAM,CAAC,GAAG,CAAC,UAAU,EAAC,kCAAgB,EAAE,gCAAW,CAAC,CAAC;AAGrD,kBAAe,MAAM,CAAC"}
