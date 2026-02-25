@@ -2,46 +2,25 @@ import {
   Bell,
   ChevronLeft,
   CircleUserRound,
+  Eye,
   Search,
   SendHorizontal,
   CheckCheck,
+  Smile,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProfileModal from "../components/ProfileModal";
 import NewGroupModal from "../components/NewGroupModal";
+import GroupInfoModal from "../components/GroupInfoModal";
 import { getProfile, searchUsers, LogoutUser } from "../api/auth";
 import { accessChat, fetchChats } from "../api/chat";
 import { fetchMessages, sendMessage } from "../api/message";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
+import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 
-interface Message {
-  _id: string;
-  sender: User;
-  content: string;
-  chat: Chat;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Chat {
-  _id: string;
-  chatName: string;
-  isGroupChat: boolean;
-  users: User[];
-  latestMessage?: Message;
-  groupAdmin?: User;
-}
-
-interface User {
-  _id: string; // Added _id for MongoDB compatibility
-  id?: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  profilePic?: string;
-}
+import type { User, Chat, Message } from "../types/chat.types";
 
 const ENDPOINT = "http://localhost:4000";
 
@@ -54,7 +33,8 @@ function Chat() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [groupName, setGroupName] = useState("");
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [allChats, setAllChats] = useState<Chat[]>([]);
@@ -88,6 +68,7 @@ function Chat() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const typingTimeoutRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
   const handleProfileOpen = () => {
     setIsProfileModalOpen(true);
@@ -387,6 +368,26 @@ function Chat() {
     };
   }, [isSearchOpen]);
 
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const el = emojiPickerRef.current;
+      if (el && !el.contains(e.target as Node)) setShowEmojiPicker(false);
+    };
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowEmojiPicker(false);
+    };
+
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [showEmojiPicker]);
+
   const getMessages = useCallback(async () => {
     if (!selectedChat) return;
     setLoadingMessages(true);
@@ -406,16 +407,15 @@ function Chat() {
   useEffect(() => {
     getMessages();
     selectedChatCompareRef.current = selectedChat;
+    setShowEmojiPicker(false);
   }, [selectedChat, getMessages]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleChatClick = (chatId: string) => {
     setSelectedChat(chatId);
-    // Clear notifications for this chat using functional update to avoid stale closures
     setNotifications((prev) =>
       prev.filter(
         (n) => (n.chat._id || n.chat)?.toString() !== chatId.toString(),
@@ -778,6 +778,15 @@ function Chat() {
                     ? selectedChatData.chatName
                     : getSender(loggedUser, selectedChatData.users)}
                 </h2>
+                {selectedChatData.isGroupChat && (
+                  <button
+                    onClick={() => setIsGroupInfoOpen(true)}
+                    title="View group members"
+                    className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    <Eye className="w-5 h-5 text-gray-500" />
+                  </button>
+                )}
               </div>
 
               {/* Chat Messages Area */}
@@ -813,7 +822,7 @@ function Chat() {
                                     className="w-8 h-8 rounded-full border border-gray-200 object-cover"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 border border-blue-200">
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 border border-blue-200 capitalize">
                                     {msg.sender.name.charAt(0)}
                                   </div>
                                 )}
@@ -827,6 +836,13 @@ function Chat() {
                                   : "bg-gray-100 text-gray-800 rounded-bl-none border border-gray-200"
                               }`}
                             >
+                              <p
+                                className={`text-[10px] font-bold mb-1 ${
+                                  isMe ? "text-blue-100" : "text-blue-600"
+                                }`}
+                              >
+                                {isMe ? "You" : msg.sender.name}
+                              </p>
                               <p className="text-sm">{msg.content}</p>
                               <p
                                 className={`text-[10px] mt-1 text-right ${
@@ -858,7 +874,7 @@ function Chat() {
                                     className="w-8 h-8 rounded-full border border-blue-200 object-cover"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-inner capitalize">
                                     {loggedUser?.name?.charAt(0) || "Y"}
                                   </div>
                                 )}
@@ -883,8 +899,32 @@ function Chat() {
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-200">
-                <div className="flex gap-2">
+              <div className="p-4 border-t border-gray-200 relative">
+                <div className="flex gap-2 items-center" ref={emojiPickerRef}>
+                  {/* Emoji Picker Popup */}
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-16 left-0 z-50 shadow-2xl rounded-xl overflow-hidden">
+                      <EmojiPicker
+                        onEmojiClick={(emojiData: EmojiClickData) => {
+                          setMessage((prev) => prev + emojiData.emoji);
+                        }}
+                        height={380}
+                        width={320}
+                        // Suggested behavior: close after pick or allow multiple?
+                        // For now let's keep it open as is common in chat apps.
+                      />
+                    </div>
+                  )}
+
+                  {/* Emoji Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker((prev) => !prev)}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
+                    title="Emoji"
+                  >
+                    <Smile className="w-6 h-6 text-gray-500 hover:text-blue-500 transition-colors" />
+                  </button>
                   <input
                     type="text"
                     placeholder="Enter a message..."
@@ -958,17 +998,19 @@ function Chat() {
 
       <NewGroupModal
         open={isGroupModalOpen}
-        groupName={groupName}
-        onGroupNameChange={setGroupName}
-        onClose={() => {
-          setIsGroupModalOpen(false);
-          setGroupName("");
-        }}
-        onCreate={() => {
-          // TODO: backend se group create karna hai
-          console.log("Create group:", groupName);
-          setIsGroupModalOpen(false);
-          setGroupName("");
+        onClose={() => setIsGroupModalOpen(false)}
+        onSuccess={getChats}
+      />
+
+      <GroupInfoModal
+        open={isGroupInfoOpen}
+        onClose={() => setIsGroupInfoOpen(false)}
+        chat={selectedChatData ?? null}
+        loggedUser={loggedUser}
+        onUpdate={(updatedChat) => {
+          setAllChats((prev) =>
+            prev.map((c) => (c._id === updatedChat._id ? updatedChat : c)),
+          );
         }}
       />
     </div>

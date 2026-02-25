@@ -17,7 +17,7 @@ export const accessChat = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 export const fetchChats = async (req: Request, res: Response) => {
   try {
@@ -26,27 +26,80 @@ export const fetchChats = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 export const createGroupChat = async (req: Request, res: Response) => {
-  if (!req.body.users || !req.body.name) {
-    return res.status(400).send({ message: "Please Fill all the feilds" });
-  }
-  let users = JSON.parse(req.body.users);
-  if (users.length < 2) {
-    return res
-      .status(400)
-      .send("More than 2 users are required to form a group chat");
-  }
-  users.push(req.user);
   try {
+    const { users: rawUsers, name } = req.body;
+
+    if (!rawUsers || !name) {
+      return res.status(400).json({ message: "Please fill all the fields" });
+    }
+
+    let users;
+    try {
+      users =
+        typeof req.body.users === "string"
+          ? JSON.parse(req.body.users)
+          : req.body.users;
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid users format" });
+    }
+
+    if (!Array.isArray(users)) {
+      return res.status(400).json({ message: "Users must be an array" });
+    }
+
+    const adminId = req.user?.id || req.user?._id;
+    if (!adminId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const adminIdStr = adminId.toString();
+    if (!users.includes(adminIdStr)) {
+      users.push(adminIdStr);
+    }
+
     const groupChat = await chatRepositories.createGroupChat(
       users,
       req.body.name,
-      req.user?.id as string,
+      adminIdStr,
     );
+
     res.status(200).json(groupChat);
-  } catch (error) {
-    res.status(500).json({ message: "Internal Server Error" });
+  } catch (error: any) {
+    console.error("CREATE GROUP CRITICAL ERROR:", error);
+    res.status(500).json({
+      message: "Database Error: " + (error.message || "Unknown error"),
+      error: error.message || error,
+    });
   }
-}
+};
+
+export const addToGroup = async (req: Request, res: Response) => {
+  const { chatId, userId } = req.body;
+  if (!chatId || !userId) {
+    return res.status(400).json({ message: "chatId and userId are required" });
+  }
+  try {
+    const updated = await chatRepositories.addToGroup(chatId, userId);
+    if (!updated) return res.status(404).json({ message: "Chat not found" });
+    res.status(200).json(updated);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+export const removeFromGroup = async (req: Request, res: Response) => {
+  const { chatId, userId } = req.body;
+  if (!chatId || !userId) {
+    return res.status(400).json({ message: "chatId and userId are required" });
+  }
+  try {
+    const updated = await chatRepositories.removeFromGroup(chatId, userId);
+    if (!updated) return res.status(404).json({ message: "Chat not found" });
+    res.status(200).json(updated);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};

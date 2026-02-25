@@ -146,7 +146,6 @@ const ProfileModal = ({
                   />
                 </label>
               </div>
-
               <div className="w-full space-y-4 text-center">
                 <div>
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">

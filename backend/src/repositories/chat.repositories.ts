@@ -80,8 +80,31 @@ const createGroupChat = async (
   }
 };
 
+const addToGroup = async (chatId: string, userId: string) => {
+  const updated = await Chat.findByIdAndUpdate(
+    chatId,
+    { $addToSet: { users: userId } },
+    { new: true },
+  )
+    .populate("users", "-password")
+    .populate("groupAdmin", "-password");
+  return updated;
+};
+const removeFromGroup = async (chatId: string, userId: string) => {
+  const updated = await Chat.findByIdAndUpdate(
+    chatId,
+    { $pull: { users: userId } },
+    { new: true },
+  )
+    .populate("users", "-password")
+    .populate("groupAdmin", "-password");
+  return updated;
+};
+
 export default {
   accessChat,
   fetchChats,
   createGroupChat,
+  addToGroup,
+  removeFromGroup
 };

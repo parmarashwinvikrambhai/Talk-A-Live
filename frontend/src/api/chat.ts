@@ -17,3 +17,13 @@ export const createGroupChat = async (users: string[], name: string) => {
   });
   return response.data;
 };
+
+export const addToGroup = async (chatId: string, userId: string) => {
+  const response = await API.put("/chat/group/add", { chatId, userId });
+  return response.data;
+};
+
+export const removeFromGroup = async (chatId: string, userId: string) => {
+  const response = await API.put("/chat/group/remove", { chatId, userId });
+  return response.data;
+};
