@@ -39,9 +39,18 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+console.log(
+  "SERVER: Socket handler initialized at",
+  new Date().toLocaleTimeString(),
+);
 
 io.on("connection", (socket) => {
-  console.log("Connected to socket.io - ID:", socket.id);
+  console.log(
+    "SOCKET: New connection - ID:",
+    socket.id,
+    "at",
+    new Date().toLocaleTimeString(),
+  );
 
   socket.on("setup", (userData) => {
     const userId = (userData?._id || userData?.id)?.toString();

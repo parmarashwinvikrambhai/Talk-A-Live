@@ -62,7 +62,10 @@ function Chat() {
   const [loggedUser, setLoggedUser] = useState<User | null>(() => {
     const saved = localStorage.getItem("userInfo");
     try {
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      // If it's the full response from login, return the user part
+      return parsed.user ? parsed.user : parsed;
     } catch {
       return null;
     }
@@ -178,7 +181,12 @@ function Chat() {
       });
 
       socketInstance.on("disconnect", (reason) => {
-        console.log("SOCKET: Disconnected. Reason:", reason);
+        console.log(
+          "SOCKET: Disconnected. Reason:",
+          reason,
+          "at",
+          new Date().toLocaleTimeString(),
+        );
         setSocketConnected(false);
       });
 
@@ -417,31 +425,42 @@ function Chat() {
   const handleSendMessage = async () => {
     if (message.trim() && selectedChat && socketRef.current) {
       const content = message.trim();
-      setMessage(""); // Clear early for UX
+      setMessage("");
 
-      // Stop typing indicator when sending
       if (typingRef.current) {
         socketRef.current.emit("stop typing", selectedChat);
         typingRef.current = false;
       }
 
       try {
+        console.log("CHAT: Sending message to API...");
         const data = await sendMessage(content, selectedChat);
-        console.log("=== SEND MESSAGE DEBUG ===");
-        console.log("Message data from API:", data);
-        console.log("chat.users:", data.chat?.users);
-        console.log("sender._id:", data.sender?._id);
-        console.log("Socket connected:", socketRef.current?.connected);
-        socketRef.current.emit("new message", data);
-        console.log("Socket emit 'new message' done");
-        setMessages((prev) => [...prev, data]);
+        console.log("CHAT: Message sent successfully, data:", data);
 
-        // Move chat to top on sender side using functional update
-        setAllChats((prev) => {
-          const chatIdx = prev.findIndex(
-            (c) => c._id.toString() === selectedChat.toString(),
+        if (socketRef.current?.connected && data && data.chat) {
+          console.log("CHAT: Emitting 'new message' to socket...");
+          socketRef.current.emit("new message", data);
+        } else {
+          console.warn(
+            "CHAT: Socket not connected or invalid data, could not emit 'new message'",
           );
-          if (chatIdx === -1) return prev;
+        }
+
+        setMessages((prev) => {
+          const exists = prev.find((m) => m._id === data._id);
+          if (exists) return prev;
+          return [...prev, data];
+        });
+
+        setAllChats((prev) => {
+          console.log("CHAT: Updating allChats list...");
+          const chatIdx = prev.findIndex(
+            (c) => (c._id?.toString() || "") === selectedChat.toString(),
+          );
+          if (chatIdx === -1) {
+            console.log("CHAT: Chat not found in list, might be a new chat");
+            return prev;
+          }
           const updatedChats = [...prev];
           updatedChats[chatIdx] = {
             ...updatedChats[chatIdx],
@@ -450,9 +469,11 @@ function Chat() {
           const [moved] = updatedChats.splice(chatIdx, 1);
           return [moved, ...updatedChats];
         });
-      } catch (error) {
-        console.error("Failed to send message:", error);
-        alert("Message send nahi ho paya!");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("CHAT: Failed to send message error details:", error);
+        console.error("error.response:", error.response?.data);
+        alert("Message send nahi ho paya! Check console for errors.");
         setMessage(content); // Restore content on fail
       }
     }
