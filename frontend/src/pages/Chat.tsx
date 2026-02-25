@@ -156,13 +156,29 @@ function Chat() {
     if (!userId) return;
 
     if (!socketRef.current) {
-      console.log("SOCKET: Initializing permanent singleton for user:", userId);
+      console.log(
+        "SOCKET: Initializing permanent singleton with handshake auth for user:",
+        userId,
+      );
+
+      // Extract token from localStorage for handshake
+      let token = "";
+      const saved = localStorage.getItem("userInfo");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          token = parsed.token || "";
+        } catch (e) {
+          console.error("SOCKET: Failed to parse userInfo for token", e);
+        }
+      }
 
       const socketInstance = io(ENDPOINT, {
         withCredentials: true,
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
+        auth: { token }, // <--- SEND TOKEN DURING HANDSHAKE
       });
 
       socketRef.current = socketInstance;
@@ -174,6 +190,8 @@ function Chat() {
         setSocketConnected(true);
 
         const userData = loggedUserRef.current;
+        // Even though we join automatically on server, we still emit 'setup'
+        // if the server expects it for confirmation/legacy reasons.
         if (userData) socketInstance.emit("setup", userData);
 
         const currentChatId = selectedChatCompareRef.current;

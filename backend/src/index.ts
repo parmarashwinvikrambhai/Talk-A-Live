@@ -9,6 +9,8 @@ import cors from "cors";
 import { Server } from "socket.io";
 import http from "http";
 
+import jwt from "jsonwebtoken";
+
 dotenv.config();
 dbConnect();
 
@@ -44,24 +46,55 @@ console.log(
   new Date().toLocaleTimeString(),
 );
 
-io.on("connection", (socket) => {
+// --- SOCKET HANDSHAKE AUTH MIDDLEWARE ---
+io.use((socket: any, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    console.log("SOCKET AUTH ERROR: No token provided");
+    return next(new Error("Authentication error: Token missing"));
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || "";
+    const decoded: any = jwt.verify(token, secret);
+    socket.user = decoded;
+    console.log("SOCKET AUTH SUCCESS: User:", decoded.name, `(${decoded.id})`);
+    next();
+  } catch (err) {
+    console.log("SOCKET AUTH ERROR: Invalid token");
+    next(new Error("Authentication error: Invalid token"));
+  }
+});
+
+io.on("connection", (socket: any) => {
   console.log(
     "SOCKET: New connection - ID:",
     socket.id,
+    "User:",
+    socket.user?.name,
     "at",
     new Date().toLocaleTimeString(),
   );
 
-  socket.on("setup", (userData) => {
+  // Automatically join user to their private room upon authenticated connection
+  if (socket.user?.id) {
+    const userId = socket.user.id.toString();
+    socket.join(userId);
+    console.log("SOCKET: User automatically joined setup room:", userId);
+  }
+
+  socket.on("setup", (userData: any) => {
+    // Keep for legacy reasons if frontend still emits it,
+    // but the main joining logic is now in the handshake middleware.
     const userId = (userData?._id || userData?.id)?.toString();
     if (userId) {
       socket.join(userId);
-      console.log("User joined setup room:", userId);
+      console.log("SOCKET: User joined setup room (via setup event):", userId);
       socket.emit("connected");
     }
   });
 
-  socket.on("join chat", (room) => {
+  socket.on("join chat", (room: any) => {
     const roomId = room?.toString();
     if (roomId) {
       socket.join(roomId);
@@ -69,10 +102,10 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("typing", (room) => socket.in(room).emit("typing"));
-  socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
+  socket.on("typing", (room: any) => socket.in(room).emit("typing"));
+  socket.on("stop typing", (room: any) => socket.in(room).emit("stop typing"));
 
-  socket.on("new message", (newMessageRecieved) => {
+  socket.on("new message", (newMessageRecieved: any) => {
     const chat = newMessageRecieved.chat;
 
     console.log("=== NEW MESSAGE EVENT ===");
