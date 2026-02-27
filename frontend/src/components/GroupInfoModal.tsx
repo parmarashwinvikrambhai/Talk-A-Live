@@ -24,6 +24,7 @@ export default function GroupInfoModal({
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [userToRemove, setUserToRemove] = useState<User | null>(null);
 
   if (!open || !chat) return null;
 
@@ -66,15 +67,17 @@ export default function GroupInfoModal({
     }
   };
 
-  const handleRemove = async (user: User) => {
-    const isSelf = user._id === loggedUser?._id;
-    if (!isAdmin && !isSelf)
-      return toast.error("Only admin can remove members");
-    setLoadingAction(user._id);
+  const confirmRemove = async () => {
+    if (!userToRemove) return;
+    setLoadingAction(userToRemove._id);
     try {
-      const updated = await removeFromGroup(chat._id, user._id);
+      const updated = await removeFromGroup(chat._id, userToRemove._id);
       onUpdate(updated);
-      toast.success(`${user.name} removed from group`);
+      toast.success(`${userToRemove.name} removed from group`);
+      if (userToRemove._id === loggedUser?._id) {
+        onClose(); // Close modal if user left the group
+      }
+      setUserToRemove(null);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to remove member";
@@ -82,6 +85,21 @@ export default function GroupInfoModal({
       toast.error(msg);
     } finally {
       setLoadingAction(null);
+    }
+  };
+
+  const handleRemoveClick = (user: User) => {
+    const isSelf = user._id === loggedUser?._id;
+    if (!isAdmin && !isSelf) {
+      return toast.error("Only admin can remove members");
+    }
+    // Only show confirmation if the user is leaving themselves
+    if (isSelf) {
+      setUserToRemove(user);
+    } else {
+      // Admins removing others can be direct, or you can also confirm that if you want
+      // But requirement says "jabb user khud ko group se remove kare"
+      setUserToRemove(user); // Let's show confirmation for both, but we can customize the message later
     }
   };
 
@@ -214,14 +232,14 @@ export default function GroupInfoModal({
                   {/* Admin can remove others; anyone can remove themselves */}
                   {(isAdmin || user._id === loggedUser?._id) && (
                     <button
-                      onClick={() => handleRemove(user)}
+                      onClick={() => handleRemoveClick(user)}
                       disabled={loadingAction === user._id}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-red-500 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-full"
+                      className=" w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-semibold text-red-500 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-full"
                     >
                       {loadingAction === user._id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
-                        <Trash2 size={15}/>
+                        <Trash2 size={17} />
                       )}
                     </button>
                   )}
@@ -240,6 +258,59 @@ export default function GroupInfoModal({
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {userToRemove && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-white/30 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-sm">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              {userToRemove._id === loggedUser?._id
+                ? "Leave Group"
+                : "Remove Member"}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {userToRemove._id === loggedUser?._id ? (
+                <>
+                  Are you sure you want to leave{" "}
+                  <span className="font-semibold">{chat.chatName}</span>?
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove{" "}
+                  <span className="font-semibold">{userToRemove.name}</span>{" "}
+                  from the group?
+                </>
+              )}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setUserToRemove(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemove}
+                disabled={loadingAction === userToRemove._id}
+                className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors font-medium flex items-center gap-2"
+              >
+                {loadingAction === userToRemove._id ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : userToRemove._id === loggedUser?._id ? (
+                  "Leave"
+                ) : (
+                  "Remove"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ function Chat() {
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const [allChats, setAllChats] = useState<Chat[]>([]);
   const [loadingChats, setLoadingChats] = useState(false);
@@ -635,17 +636,7 @@ function Chat() {
                     <button
                       type="button"
                       className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
-                      onClick={async () => {
-                        try {
-                          await LogoutUser();
-                          localStorage.removeItem("userInfo");
-                          navigate("/");
-                        } catch (error) {
-                          console.error("Logout failed:", error);
-                        } finally {
-                          setIsProfileMenuOpen(false);
-                        }
-                      }}
+                      onClick={() => setIsLogoutModalOpen(true)}
                     >
                       Logout
                     </button>
@@ -667,7 +658,7 @@ function Chat() {
                   onClick={() => setIsGroupModalOpen(true)}
                   className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-600"
                 >
-                  <span>New Group Chat</span>
+                  <span>Create New Group</span>
                   <span className="text-lg">+</span>
                 </button>
               </div>
@@ -1013,6 +1004,45 @@ function Chat() {
           );
         }}
       />
+        
+      {/* Logout Confirmation Modal */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-sm">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Logout</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to logout?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await LogoutUser();
+                    localStorage.removeItem("userInfo");
+                    navigate("/");
+                  } catch (error) {
+                    console.error("Logout failed:", error);
+                  } finally {
+                    setIsLogoutModalOpen(false);
+                    setIsProfileMenuOpen(false);
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
