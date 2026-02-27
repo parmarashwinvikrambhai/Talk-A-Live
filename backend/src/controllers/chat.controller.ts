@@ -17,7 +17,7 @@ export const accessChat = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 export const fetchChats = async (req: Request, res: Response) => {
   try {
@@ -26,7 +26,7 @@ export const fetchChats = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 export const createGroupChat = async (req: Request, res: Response) => {
   try {
@@ -54,7 +54,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
     if (!adminId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    
+
     const adminIdStr = adminId.toString();
     if (!users.includes(adminIdStr)) {
       users.push(adminIdStr);
@@ -74,7 +74,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
       error: error.message || error,
     });
   }
-}
+};
 
 export const addToGroup = async (req: Request, res: Response) => {
   const { chatId, userId } = req.body;
@@ -82,13 +82,31 @@ export const addToGroup = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "chatId and userId are required" });
   }
   try {
-    const updated = await chatRepositories.addToGroup(chatId, userId);
-    if (!updated) return res.status(404).json({ message: "Chat not found" });
-    res.status(200).json(updated);
+    const { updatedChat, systemMessage } = await chatRepositories.addToGroup(
+      chatId,
+      userId,
+    );
+    if (!updatedChat)
+      return res.status(404).json({ message: "Chat not found" });
+
+    if (systemMessage) {
+      const io = req.app.get("io");
+      const fullMessage = systemMessage.toObject() as any;
+      fullMessage.chat = updatedChat;
+
+      console.log(`EMIT: Notifying members of join in chat ${chatId}`);
+      updatedChat.users.forEach((user: any) => {
+        const targetId = (user._id || user.id || user).toString();
+        console.log(`EMIT: Sending to user ${targetId}`);
+        io.to(targetId).emit("message recieved", fullMessage);
+      });
+    }
+
+    res.status(200).json(updatedChat);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Server Error" });
   }
-}
+};
 
 export const removeFromGroup = async (req: Request, res: Response) => {
   const { chatId, userId } = req.body;
@@ -96,10 +114,31 @@ export const removeFromGroup = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "chatId and userId are required" });
   }
   try {
-    const updated = await chatRepositories.removeFromGroup(chatId, userId);
-    if (!updated) return res.status(404).json({ message: "Chat not found" });
-    res.status(200).json(updated);
+    const { updatedChat, systemMessage } =
+      await chatRepositories.removeFromGroup(chatId, userId);
+    if (!updatedChat)
+      return res.status(404).json({ message: "Chat not found" });
+
+    if (systemMessage) {
+      const io = req.app.get("io");
+      const fullMessage = systemMessage.toObject() as any;
+      fullMessage.chat = updatedChat; // Attach chat details for socket listeners
+
+      console.log(`EMIT: Notifying members of leave in chat ${chatId}`);
+      // 1. Notify remaining members
+      updatedChat.users.forEach((u: any) => {
+        const targetId = (u._id || u.id || u).toString();
+        console.log(`EMIT: Sending to remaining member ${targetId}`);
+        io.to(targetId).emit("message recieved", fullMessage);
+      });
+
+      // 2. IMPORTANT: Notify the user who was just removed/left!
+      console.log(`EMIT: Sending to removed user ${userId}`);
+      io.to(userId.toString()).emit("message recieved", fullMessage);
+    }
+
+    res.status(200).json(updatedChat);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Server Error" });
   }
-}
+};

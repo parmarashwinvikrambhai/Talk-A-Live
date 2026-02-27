@@ -7,6 +7,16 @@ export const sendMessage = async (
   content: string,
   chatId: string,
 ) => {
+  const chat = await Chat.findById(chatId);
+  if (!chat) throw new Error("Chat not found");
+
+  const isMember = chat.users.some(
+    (userId: any) => userId.toString() === senderId.toString(),
+  );
+  if (!isMember) {
+    throw new Error("You are not a member of this chat");
+  }
+
   let newMessage = await Message.create({
     sender: senderId,
     content,

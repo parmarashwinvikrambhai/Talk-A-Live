@@ -1,5 +1,6 @@
 import Chat from "../models/chat.model";
 import User from "../models/user.model";
+import Message from "../models/message.model";
 
 const accessChat = async (userId: string, currentUserId: string) => {
   // Check if a 1-on-1 chat exists between the two users
@@ -34,7 +35,7 @@ const accessChat = async (userId: string, currentUserId: string) => {
     );
     return fullChat;
   }
-}
+};
 
 const fetchChats = async (currentUserId: string) => {
   try {
@@ -55,7 +56,7 @@ const fetchChats = async (currentUserId: string) => {
   } catch (error) {
     throw error;
   }
-}
+};
 
 const createGroupChat = async (
   users: string[],
@@ -78,34 +79,75 @@ const createGroupChat = async (
   } catch (error) {
     throw error;
   }
-}
+};
 
 const addToGroup = async (chatId: string, userId: string) => {
   const updated = await Chat.findByIdAndUpdate(
     chatId,
     { $addToSet: { users: userId } },
-    { new: true },
+    { returnDocument: "after" },
   )
     .populate("users", "-password")
     .populate("groupAdmin", "-password");
-  return updated;
-}
+
+
+  if (updated) {
+    const userAdded = await User.findById(userId);
+    const content = userAdded
+      ? `${userAdded.name} has joined the group`
+      : "A new member has joined the group";
+
+    const systemMessage = await Message.create({
+      content,
+      chat: chatId,
+    });
+
+    await Chat.findByIdAndUpdate(chatId, { latestMessage: systemMessage });
+
+    // Fetch the full chat for socket emission
+    const fullChat = await Chat.findById(chatId)
+      .populate("users", "-password")
+      .populate("groupAdmin", "-password");
+
+    return { updatedChat: fullChat || updated, systemMessage };
+  }
+  return { updatedChat: updated, systemMessage: null };
+};
 
 const removeFromGroup = async (chatId: string, userId: string) => {
   const updated = await Chat.findByIdAndUpdate(
     chatId,
     { $pull: { users: userId } },
-    { new: true },
+    { returnDocument: "after" },
   )
     .populate("users", "-password")
     .populate("groupAdmin", "-password");
-  return updated;
-}
+  if (updated) {
+    const userRemoved = await User.findById(userId);
+    const content = userRemoved
+      ? `${userRemoved.name} has left the group`
+      : "A member has left the group";
+
+    const systemMessage = await Message.create({
+      content,
+      chat: chatId,
+    });
+
+    await Chat.findByIdAndUpdate(chatId, { latestMessage: systemMessage });
+    const fullChat = await Chat.findById(chatId)
+      .populate("users", "-password")
+      .populate("groupAdmin", "-password");
+
+    return { updatedChat: fullChat || updated, systemMessage };
+  }
+
+  return { updatedChat: updated, systemMessage: null };
+};
 
 export default {
   accessChat,
   fetchChats,
   createGroupChat,
   addToGroup,
-  removeFromGroup
+  removeFromGroup,
 };

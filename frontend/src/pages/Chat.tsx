@@ -229,7 +229,7 @@ function Chat() {
 
           const updated = [...prev];
           updated[index] = {
-            ...updated[index],
+            ...(typeof chatData === "object" ? chatData : updated[index]),
             latestMessage: newMessageRecieved,
           };
           const [moved] = updated.splice(index, 1);
@@ -794,7 +794,22 @@ function Chat() {
                   ) : (
                     <>
                       {messages.map((msg: Message) => {
-                        const isMe = msg.sender._id === loggedUser?._id;
+                        const isSystemMessage = !msg.sender;
+                        const isMe = msg.sender?._id === loggedUser?._id;
+
+                        if (isSystemMessage) {
+                          return (
+                            <div
+                              key={msg._id}
+                              className="flex justify-center my-2"
+                            >
+                              <div className="bg-gray-100 text-gray-500 text-[11px] px-3 py-1 rounded-full border border-gray-200 shadow-sm font-medium">
+                                {msg.content}
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={msg._id}
@@ -804,7 +819,8 @@ function Chat() {
                           >
                             {!isMe && (
                               <div className="shrink-0 mb-1">
-                                {msg.sender.profilePic || msg.sender.avatar ? (
+                                {msg.sender?.profilePic ||
+                                msg.sender?.avatar ? (
                                   <img
                                     src={
                                       msg.sender.profilePic || msg.sender.avatar
@@ -814,7 +830,7 @@ function Chat() {
                                   />
                                 ) : (
                                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 border border-blue-200 capitalize">
-                                    {msg.sender.name.charAt(0)}
+                                    {msg.sender?.name?.charAt(0) || "U"}
                                   </div>
                                 )}
                               </div>
@@ -832,7 +848,7 @@ function Chat() {
                                   isMe ? "text-blue-100" : "text-blue-600"
                                 }`}
                               >
-                                {isMe ? "You" : msg.sender.name}
+                                {isMe ? "You" : msg.sender?.name || "User"}
                               </p>
                               <p className="text-sm">{msg.content}</p>
                               <p
@@ -999,12 +1015,27 @@ function Chat() {
         chat={selectedChatData ?? null}
         loggedUser={loggedUser}
         onUpdate={(updatedChat) => {
-          setAllChats((prev) =>
-            prev.map((c) => (c._id === updatedChat._id ? updatedChat : c)),
+          const isStillMember = updatedChat.users.some(
+            (u: User) => u._id === loggedUser?._id,
           );
+
+          if (!isStillMember) {
+            // Remove from my list
+            setAllChats((prev) =>
+              prev.filter((c) => c._id !== updatedChat._id),
+            );
+            if (selectedChat === updatedChat._id) {
+              setSelectedChat(null);
+            }
+          } else {
+            // Update the existing chat in my list
+            setAllChats((prev) =>
+              prev.map((c) => (c._id === updatedChat._id ? updatedChat : c)),
+            );
+          }
         }}
       />
-        
+
       {/* Logout Confirmation Modal */}
       {isLogoutModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">

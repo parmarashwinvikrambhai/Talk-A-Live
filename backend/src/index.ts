@@ -41,6 +41,7 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+app.set("io", io);
 console.log(
   "SERVER: Socket handler initialized at",
   new Date().toLocaleTimeString(),
@@ -109,7 +110,6 @@ io.on("connection", (socket: any) => {
     const chat = newMessageRecieved.chat;
 
     console.log("=== NEW MESSAGE EVENT ===");
-    // Do NOT log the full message data as it might contain huge base64 strings
     console.log("Chat ID:", chat?._id || chat);
 
     if (!chat) return console.log("ERROR: chat is undefined");
@@ -124,14 +124,13 @@ io.on("connection", (socket: any) => {
 
     chat.users.forEach((user: any) => {
       const targetId = (user._id || user.id)?.toString();
-      const senderId = (
-        newMessageRecieved.sender._id || newMessageRecieved.sender.id
-      )?.toString();
-
-      if (targetId === senderId) return;
-
-      console.log(`Sending message to target user: ${targetId}`);
-      // Use io.to() to ensure it reaches all sockets the user has open (e.g. multiple tabs)
+      if (newMessageRecieved.sender) {
+        const senderId = (
+          newMessageRecieved.sender._id || newMessageRecieved.sender.id
+        )?.toString();
+        if (targetId === senderId) return;
+      }
+    console.log(`Sending message to target user: ${targetId}`);
       io.to(targetId).emit("message recieved", newMessageRecieved);
     });
     console.log("=== END NEW MESSAGE ===");
