@@ -1,7 +1,17 @@
 import API from "../utils/axios";
 
-export const sendMessage = async (content: string, chatId: string) => {
-  const response = await API.post("/message", { content, chatId });
+export const sendMessage = async (
+  content: string,
+  chatId: string,
+  isAudio: boolean = false,
+  duration?: string,
+) => {
+  const response = await API.post("/message", {
+    content,
+    chatId,
+    isAudio,
+    duration,
+  });
   return response.data;
 };
 

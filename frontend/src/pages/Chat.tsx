@@ -7,6 +7,11 @@ import {
   SendHorizontal,
   CheckCheck,
   Smile,
+  Mic,
+  Square,
+  Play,
+  Pause,
+  Volume2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProfileModal from "../components/ProfileModal";
@@ -19,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { useReactMediaRecorder } from "react-media-recorder";
 
 import type { User, Chat, Message } from "../types/chat.types";
 
@@ -37,6 +43,17 @@ function Chat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+
+  const {
+    status: recordingStatus,
+    startRecording,
+    stopRecording,
+    mediaBlobUrl,
+    clearBlobUrl,
+  } = useReactMediaRecorder({ audio: true });
 
   const [allChats, setAllChats] = useState<Chat[]>([]);
   const [loadingChats, setLoadingChats] = useState(false);
@@ -70,6 +87,9 @@ function Chat() {
   const typingTimeoutRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const localAudioUrls = useRef<Map<string, string>>(new Map());
+  const capturedDurationRef = useRef<string>("0:00");
 
   const handleProfileOpen = () => {
     setIsProfileModalOpen(true);
@@ -89,6 +109,174 @@ function Chat() {
   }, []);
 
   const loggedUserRef = useRef<User | null>(null);
+
+  const handleSendVoiceMessage = useCallback(
+    async (blobUrl: string) => {
+      if (!selectedChat) return;
+      const duration = capturedDurationRef.current;
+      console.log("CHAT: Sending voice message, duration:", duration);
+      try {
+        const audioBlob = await fetch(blobUrl).then((r) => r.blob());
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          try {
+            console.log("CHAT: Calling sendMessage API with isAudio=true");
+            const data = await sendMessage(
+              base64Audio,
+              selectedChat,
+              true, // isAudio
+              duration,
+            );
+            console.log("CHAT: sendMessage response received:", {
+              id: data._id,
+              isAudio: data.isAudio,
+              contentPreview: data.content?.substring(0, 30),
+            });
+
+            // Store the blob URL locally for playback by sender
+            localAudioUrls.current.set(data._id, blobUrl);
+            if (socketRef.current?.connected && data && data.chat) {
+              socketRef.current.emit("new message", data);
+            }
+            setMessages((prev) => {
+              const exists = prev.find((m) => m._id === data._id);
+              if (exists) return prev;
+              return [...prev, data];
+            });
+            setAllChats((prev) => {
+              const chatIdx = prev.findIndex(
+                (c) => c._id?.toString() === selectedChat.toString(),
+              );
+              if (chatIdx === -1) return prev;
+              const updated = [...prev];
+              updated[chatIdx] = { ...updated[chatIdx], latestMessage: data };
+              const [moved] = updated.splice(chatIdx, 1);
+              return [moved, ...updated];
+            });
+            clearBlobUrl();
+          } catch (error) {
+            console.error("Failed to send voice message:", error);
+            toast.error("Failed to send voice message");
+          }
+        };
+      } catch (error) {
+        console.error("Error processing voice message:", error);
+      }
+    },
+    [selectedChat, clearBlobUrl],
+  );
+
+  useEffect(() => {
+    if (mediaBlobUrl && !isRecording && recordingStatus === "stopped") {
+      handleSendVoiceMessage(mediaBlobUrl);
+    }
+  }, [mediaBlobUrl, isRecording, recordingStatus, handleSendVoiceMessage]);
+
+  // Use a ref to keep track of the playing audio to avoid restarting on message list updates
+  const playingAudioIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // If no active audio, stop anything playing
+    if (!activeAudioId) {
+      if (audioRef.current) {
+        console.log("CHAT: Stopping audio playback");
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      playingAudioIdRef.current = null;
+      return;
+    }
+
+    // If we're already playing this message, don't restart it just because the messages array changed
+    if (activeAudioId === playingAudioIdRef.current && audioRef.current) {
+      return;
+    }
+
+    const msg = messages.find((m) => m._id === activeAudioId);
+    if (msg && (msg.isAudio || msg.content?.startsWith("data:audio"))) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      playingAudioIdRef.current = activeAudioId;
+
+      // Use local blob URL if available (sender side), otherwise use content
+      let audioSrc = localAudioUrls.current.get(activeAudioId) || msg.content;
+
+      // Fix potential MIME type mismatch: if content starts with WebM header GkXf but says audio/wav
+      if (audioSrc?.startsWith("data:audio/wav;base64,GkXf")) {
+        console.log("CHAT: Correcting WAV to WEBM MIME type");
+        audioSrc = audioSrc.replace("data:audio/wav", "data:audio/webm");
+      }
+
+      console.log(
+        "CHAT: Playing audio. Source preview:",
+        audioSrc?.substring(0, 50),
+      );
+
+      if (!audioSrc) {
+        console.error("CHAT: No audio source found");
+        setActiveAudioId(null);
+        return;
+      }
+
+      const audio = new Audio(audioSrc);
+      audioRef.current = audio;
+      audio.volume = 1.0;
+
+      audio.onloadedmetadata = () => {
+        console.log("CHAT: Audio metadata loaded. Duration:", audio.duration);
+      };
+
+      audio.onended = () => {
+        console.log("CHAT: Audio playback ended naturally");
+        setActiveAudioId(null);
+      };
+
+      audio
+        .play()
+        .then(() => console.log("CHAT: Audio playback started"))
+        .catch((err) => {
+          console.error("CHAT: Audio playback error:", err);
+          setActiveAudioId(null);
+        });
+    } else {
+      setActiveAudioId(null);
+    }
+  }, [activeAudioId, messages]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingTime(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Generate stable waveform bar heights seeded by message ID
+  const getWaveformHeights = (id: string, count: number = 20): number[] => {
+    const heights: number[] = [];
+    let seed = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    for (let i = 0; i < count; i++) {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      heights.push(20 + Math.abs(seed % 80));
+    }
+    return heights;
+  };
 
   const fetchLoggedUser = async () => {
     try {
@@ -605,7 +793,9 @@ function Chat() {
                               New message from {senderName}
                             </p>
                             <p className="text-gray-500 text-xs truncate mt-0.5">
-                              {notif.content}
+                              {notif.isAudio
+                                ? "🎤 Voice Message"
+                                : notif.content}
                             </p>
                           </div>
                         );
@@ -676,7 +866,10 @@ function Chat() {
                     ? chat.chatName
                     : getSender(loggedUser, chat.users);
                   const lastMsg =
-                    chat.latestMessage?.content || "No messages yet";
+                    chat.latestMessage?.isAudio ||
+                    chat.latestMessage?.content?.startsWith("data:audio")
+                      ? "🎤 Voice Message"
+                      : chat.latestMessage?.content || "No messages yet";
 
                   return (
                     <div
@@ -850,7 +1043,88 @@ function Chat() {
                               >
                                 {isMe ? "You" : msg.sender?.name || "User"}
                               </p>
-                              <p className="text-sm">{msg.content}</p>
+
+                              {msg.isAudio ||
+                              msg.content?.startsWith("data:audio") ? (
+                                <div className="flex items-center gap-3 py-1 min-w-[200px]">
+                                  <button
+                                    onClick={() => {
+                                      console.log(
+                                        "CHAT: Play button clicked for message:",
+                                        msg._id,
+                                      );
+                                      setActiveAudioId(
+                                        activeAudioId === msg._id
+                                          ? null
+                                          : msg._id,
+                                      );
+                                    }}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                                      isMe
+                                        ? "bg-white/20 hover:bg-white/30"
+                                        : "bg-blue-100 hover:bg-blue-200"
+                                    }`}
+                                  >
+                                    {activeAudioId === msg._id ? (
+                                      <Pause
+                                        className={
+                                          isMe
+                                            ? "w-5 h-5 text-white"
+                                            : "w-5 h-5 text-blue-600"
+                                        }
+                                      />
+                                    ) : (
+                                      <Play
+                                        className={
+                                          isMe
+                                            ? "w-5 h-5 text-white fill-white"
+                                            : "w-5 h-5 text-blue-600 fill-blue-600"
+                                        }
+                                      />
+                                    )}
+                                  </button>
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-1 h-6">
+                                      {getWaveformHeights(msg._id).map(
+                                        (h, i) => (
+                                          <div
+                                            key={i}
+                                            className={`w-0.5 rounded-full transition-all ${
+                                              isMe
+                                                ? "bg-white/40"
+                                                : "bg-blue-300"
+                                            } ${activeAudioId === msg._id ? "animate-pulse" : ""}`}
+                                            style={{
+                                              height: `${h}%`,
+                                            }}
+                                          />
+                                        ),
+                                      )}
+                                    </div>
+                                    <div className="flex justify-between items-center text-[9px]">
+                                      <span
+                                        className={
+                                          isMe
+                                            ? "text-blue-100"
+                                            : "text-gray-500"
+                                        }
+                                      >
+                                        {msg.duration || "0:00"}
+                                      </span>
+                                      <Volume2
+                                        className={
+                                          isMe
+                                            ? "w-3 h-3 text-blue-100"
+                                            : "w-3 h-3 text-gray-400"
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm">{msg.content}</p>
+                              )}
+
                               <p
                                 className={`text-[10px] mt-1 text-right ${
                                   isMe ? "text-blue-100" : "text-gray-400"
@@ -923,51 +1197,99 @@ function Chat() {
                     </div>
                   )}
 
-                  {/* Emoji Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker((prev) => !prev)}
-                    className="p-1 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
-                    title="Emoji"
-                  >
-                    <Smile className="w-6 h-6 text-gray-500 hover:text-blue-500 transition-colors" />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="Enter a message..."
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
+                  {/* Emoji Button - Only show if not recording */}
+                  {!isRecording && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                      className="p-1 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
+                      title="Emoji"
+                    >
+                      <Smile className="w-6 h-6 text-gray-500 hover:text-blue-500 transition-colors" />
+                    </button>
+                  )}
 
-                      if (!socketConnected || !socketRef.current) return;
+                  {isRecording ? (
+                    <div className="flex-1 flex items-center justify-between px-4 py-2 bg-red-50 border border-red-200 rounded-lg animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
+                        <span className="text-red-600 font-medium text-sm">
+                          Recording Voice Message...
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-red-400 text-xs font-mono">
+                          {formatTime(recordingTime)}
+                        </span>
+                        <button
+                          onClick={() => {
+                            // Save duration BEFORE isRecording becomes false (which resets recordingTime to 0)
+                            capturedDurationRef.current =
+                              formatTime(recordingTime);
+                            setIsRecording(false);
+                            stopRecording();
+                          }}
+                          className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <Square className="w-4 h-4 fill-white" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        placeholder="Enter a message..."
+                        value={message}
+                        onChange={(e) => {
+                          setMessage(e.target.value);
 
-                      // If not already typing, emit event
-                      if (!typingRef.current) {
-                        typingRef.current = true;
-                        socketRef.current.emit("typing", selectedChat);
-                        console.log("SOCKET: Emitted 'typing'");
-                      }
+                          if (!socketConnected || !socketRef.current) return;
 
-                      // Debounce 'stop typing'
-                      if (typingTimeoutRef.current)
-                        clearTimeout(typingTimeoutRef.current);
+                          // If not already typing, emit event
+                          if (!typingRef.current) {
+                            typingRef.current = true;
+                            socketRef.current.emit("typing", selectedChat);
+                            console.log("SOCKET: Emitted 'typing'");
+                          }
 
-                      typingTimeoutRef.current = setTimeout(() => {
-                        if (typingRef.current && socketRef.current) {
-                          socketRef.current.emit("stop typing", selectedChat);
-                          typingRef.current = false;
-                          console.log(
-                            "SOCKET: Emitted 'stop typing' (debounced)",
-                          );
-                        }
-                      }, 3000);
-                    }}
-                    onKeyPress={handleKeyPress}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                          // Debounce 'stop typing'
+                          if (typingTimeoutRef.current)
+                            clearTimeout(typingTimeoutRef.current);
+
+                          typingTimeoutRef.current = setTimeout(() => {
+                            if (typingRef.current && socketRef.current) {
+                              socketRef.current.emit(
+                                "stop typing",
+                                selectedChat,
+                              );
+                              typingRef.current = false;
+                              console.log(
+                                "SOCKET: Emitted 'stop typing' (debounced)",
+                              );
+                            }
+                          }, 3000);
+                        }}
+                        onKeyPress={handleKeyPress}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRecording(true);
+                          startRecording();
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
+                        title="Record Voice"
+                      >
+                        <Mic className="w-6 h-6 text-gray-500 hover:text-red-500 transition-colors" />
+                      </button>
+                    </>
+                  )}
+
                   <button
                     onClick={handleSendMessage}
-                    disabled={!message.trim()}
+                    disabled={!message.trim() && !isRecording}
                     className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                   >
                     <SendHorizontal />

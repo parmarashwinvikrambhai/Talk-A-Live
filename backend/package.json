@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src/**/*.ts --exec ts-node --files src/index.ts",
+    "dev": "nodemon --watch src/**/*.ts --exec \"echo SERVER_VERSION_2 && ts-node\" --files src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

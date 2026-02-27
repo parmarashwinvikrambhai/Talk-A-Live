@@ -21,6 +21,8 @@ export interface Message {
   sender: User;
   content: string;
   chat: Chat;
+  isAudio?: boolean;
+  duration?: string;
   createdAt: string;
   updatedAt: string;
 }
