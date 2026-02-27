@@ -34,7 +34,7 @@ const accessChat = async (userId: string, currentUserId: string) => {
     );
     return fullChat;
   }
-};
+}
 
 const fetchChats = async (currentUserId: string) => {
   try {
@@ -55,7 +55,7 @@ const fetchChats = async (currentUserId: string) => {
   } catch (error) {
     throw error;
   }
-};
+}
 
 const createGroupChat = async (
   users: string[],
@@ -78,7 +78,7 @@ const createGroupChat = async (
   } catch (error) {
     throw error;
   }
-};
+}
 
 const addToGroup = async (chatId: string, userId: string) => {
   const updated = await Chat.findByIdAndUpdate(
@@ -89,7 +89,8 @@ const addToGroup = async (chatId: string, userId: string) => {
     .populate("users", "-password")
     .populate("groupAdmin", "-password");
   return updated;
-};
+}
+
 const removeFromGroup = async (chatId: string, userId: string) => {
   const updated = await Chat.findByIdAndUpdate(
     chatId,
@@ -99,7 +100,7 @@ const removeFromGroup = async (chatId: string, userId: string) => {
     .populate("users", "-password")
     .populate("groupAdmin", "-password");
   return updated;
-};
+}
 
 export default {
   accessChat,
