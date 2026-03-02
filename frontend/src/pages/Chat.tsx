@@ -26,12 +26,12 @@ import toast from "react-hot-toast";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { useReactMediaRecorder } from "react-media-recorder";
 
-import type { User, Chat, Message } from "../types/chat.types";
+import type { User, Chat as ChatType, Message } from "../types/chat.types";
 
 const ENDPOINT =
   import.meta.env.VITE_SOCKET_URL || "https://talk-a-live-jrz1.onrender.com";
 
-function Chat() {
+function ChatPage() {
   const navigate = useNavigate();
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -56,7 +56,7 @@ function Chat() {
     clearBlobUrl,
   } = useReactMediaRecorder({ audio: true });
 
-  const [allChats, setAllChats] = useState<Chat[]>([]);
+  const [allChats, setAllChats] = useState<ChatType[]>([]);
   const [loadingChats, setLoadingChats] = useState(false);
   const [loggedUser, setLoggedUser] = useState<User | null>(() => {
     const saved = localStorage.getItem("userInfo");
@@ -618,7 +618,7 @@ function Chat() {
     try {
       const data = await accessChat(userId);
       console.log("Chat data received:", data);
-      if (!allChats.find((c: Chat) => c._id === data._id)) {
+      if (!allChats.find((c: ChatType) => c._id === data._id)) {
         setAllChats([data, ...allChats]);
       }
       setSelectedChat(data._id);
@@ -694,9 +694,9 @@ function Chat() {
   };
 
   const selectedChatData = allChats.find(
-    (chat: Chat) => chat._id === selectedChat,
+    (chat: ChatType) => chat._id === selectedChat,
   );
-  const filteredChats = allChats.filter((chat: Chat) => {
+  const filteredChats = allChats.filter((chat: ChatType) => {
     const chatName = chat.isGroupChat
       ? chat.chatName
       : getSender(loggedUser, chat.users);
@@ -866,7 +866,7 @@ function Chat() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
               ) : (
-                filteredChats.map((chat: Chat) => {
+                filteredChats.map((chat: ChatType) => {
                   const displayName = chat.isGroupChat
                     ? chat.chatName
                     : getSender(loggedUser, chat.users);
@@ -1397,4 +1397,4 @@ function Chat() {
   );
 }
 
-export default Chat;
+export default ChatPage;
