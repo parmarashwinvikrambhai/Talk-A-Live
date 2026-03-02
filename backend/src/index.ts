@@ -19,8 +19,7 @@ const allowedOrigins = [
   "http://localhost:5173",
 ].filter(Boolean) as string[];
 
-console.log("DEBUG: FRONTEND_URL from env:", process.env.FRONTEND_URL);
-console.log("DEBUG: Final Allowed Origins:", allowedOrigins);
+console.log("Allowed Origins for CORS (DEBUG):", allowedOrigins);
 
 app.use(
   cors({
