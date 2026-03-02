@@ -706,17 +706,19 @@ function Chat() {
   return (
     <div className="min-h-screen bg-blue-50">
       {/* Background Pattern */}
-      <div className="fixed inset-0 bg-blue-50 opacity-50 pointer-events-none">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full opacity-30 blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full opacity-30 blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/3 w-80 h-80 bg-white rounded-full opacity-20 blur-3xl"></div>
+      <div className="fixed inset-0 bg-blue-50/50 opacity-40 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute top-20 left-20 w-64 h-64 bg-blue-300 rounded-full opacity-20 blur-[100px]"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-300 rounded-full opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative flex h-screen">
+      <div className="relative flex h-screen overflow-hidden p-0 lg:p-6 gap-0 lg:gap-6 backdrop-blur-[2px]">
         {/* Left Sidebar - Chat List */}
-        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+        <div
+          className={`glass w-full lg:w-[400px] lg:rounded-3xl shadow-2xl flex flex-col transition-all duration-500 ease-in-out ${selectedChat ? "hidden lg:flex" : "flex"}`}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between p-6 border-b border-white/10 glass rounded-t-3xl shadow-sm">
             <div
               ref={searchRef}
               className="flex items-center gap-3 flex-1"
@@ -840,16 +842,18 @@ function Chat() {
 
           {/* My Chats Section */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">My Chats</h2>
+            <div className="p-6 border-b border-white/10">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+                <h2 className="text-2xl font-black text-gray-800 tracking-tight">
+                  My Chats
+                </h2>
                 <button
                   type="button"
                   onClick={() => setIsGroupModalOpen(true)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-600"
+                  className="w-full lg:w-auto bg-linear-to-r from-blue-500 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"
                 >
-                  <span>Create New Group</span>
                   <span className="text-lg">+</span>
+                  <span>New Group</span>
                 </button>
               </div>
             </div>
@@ -875,10 +879,10 @@ function Chat() {
                     <div
                       key={chat._id}
                       onClick={() => handleChatClick(chat._id)}
-                      className={`p-4 cursor-pointer transition-colors ${
+                      className={`p-5 cursor-pointer transition-all duration-300 mx-2 my-1 rounded-2xl ${
                         selectedChat === chat._id
-                          ? "bg-blue-100"
-                          : "bg-white hover:bg-gray-50"
+                          ? "bg-blue-500 text-white shadow-lg scale-[1.02]"
+                          : "hover:bg-white/50 text-gray-700 hover:shadow-md"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -886,10 +890,14 @@ function Chat() {
                           {displayName.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-800 truncate">
+                          <h3
+                            className={`font-bold truncate ${selectedChat === chat._id ? "text-white" : "text-gray-800"}`}
+                          >
                             {displayName}
                           </h3>
-                          <p className="text-sm text-gray-500 truncate">
+                          <p
+                            className={`text-xs truncate mt-0.5 ${selectedChat === chat._id ? "text-blue-100" : "text-gray-500"}`}
+                          >
                             {lastMsg}
                           </p>
                         </div>
@@ -946,17 +954,19 @@ function Chat() {
         </div>
 
         {/* Right Panel - Chat View */}
-        <div className="flex-1 bg-white flex flex-col">
+        <div
+          className={`glass flex-1 lg:rounded-3xl shadow-2xl flex flex-col transition-all duration-500 ease-in-out ${selectedChat ? "flex" : "hidden lg:flex"}`}
+        >
           {selectedChatData ? (
             <>
               {/* Chat Info Bar */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-800 flex gap-4 items-center">
+              <div className="flex items-center justify-between p-6 border-b border-white/10 glass rounded-t-3xl shadow-sm z-10">
+                <h2 className="text-xl font-black text-gray-800 flex gap-4 items-center tracking-tight">
                   <button
                     onClick={() => setSelectedChat(null)}
-                    className="hover:bg-gray-200 p-1 rounded transition-colors"
+                    className="lg:hidden hover:bg-gray-200 p-1 rounded transition-colors"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-6 h-6" />
                   </button>
                   {selectedChatData.isGroupChat
                     ? selectedChatData.chatName
@@ -965,10 +975,10 @@ function Chat() {
                 {selectedChatData.isGroupChat && (
                   <button
                     onClick={() => setIsGroupInfoOpen(true)}
-                    title="View group members"
-                    className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                    title="View group info"
+                    className="p-3 rounded-2xl hover:bg-black/5 transition-all active:scale-90 shrink-0 glass shadow-sm"
                   >
-                    <Eye className="w-5 h-5 text-gray-500" />
+                    <Eye className="w-6 h-6 text-gray-700 font-bold" />
                   </button>
                 )}
               </div>
@@ -1030,15 +1040,15 @@ function Chat() {
                             )}
 
                             <div
-                              className={`px-4 py-2 rounded-2xl max-w-[70%] shadow-sm ${
+                              className={`px-4 py-3 rounded-2xl max-w-[85%] lg:max-w-[70%] shadow-xl transition-all hover:shadow-2xl ${
                                 isMe
-                                  ? "bg-blue-500 text-white rounded-br-none"
-                                  : "bg-gray-100 text-gray-800 rounded-bl-none border border-gray-200"
+                                  ? "bg-linear-to-br from-blue-600 to-indigo-600 text-white rounded-br-none shadow-blue-500/20"
+                                  : "glass text-gray-800 rounded-bl-none border-white/40 shadow-gray-200/50"
                               }`}
                             >
                               <p
-                                className={`text-[10px] font-bold mb-1 ${
-                                  isMe ? "text-blue-100" : "text-blue-600"
+                                className={`text-[11px] font-bold mb-1.5 uppercase tracking-wider ${
+                                  isMe ? "text-blue-100/80" : "text-blue-500"
                                 }`}
                               >
                                 {isMe ? "You" : msg.sender?.name || "User"}
@@ -1179,120 +1189,106 @@ function Chat() {
                 </div>
               </div>
 
-              {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 relative">
-                <div className="flex gap-2 items-center" ref={emojiPickerRef}>
+              {/* Message Input Area */}
+              <div className="p-3 lg:p-6 border-t border-white/10 glass rounded-b-3xl">
+                <div className="flex gap-3 items-end" ref={emojiPickerRef}>
                   {/* Emoji Picker Popup */}
                   {showEmojiPicker && (
-                    <div className="absolute bottom-16 left-0 z-50 shadow-2xl rounded-xl overflow-hidden">
+                    <div className="absolute bottom-20 left-6 z-50 shadow-2xl rounded-2xl overflow-hidden animate-in slide-in-from-bottom-2">
                       <EmojiPicker
                         onEmojiClick={(emojiData: EmojiClickData) => {
                           setMessage((prev) => prev + emojiData.emoji);
                         }}
                         height={380}
                         width={320}
-                        // Suggested behavior: close after pick or allow multiple?
-                        // For now let's keep it open as is common in chat apps.
                       />
                     </div>
                   )}
 
-                  {/* Emoji Button - Only show if not recording */}
-                  {!isRecording && (
-                    <button
-                      type="button"
-                      onClick={() => setShowEmojiPicker((prev) => !prev)}
-                      className="p-1 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
-                      title="Emoji"
-                    >
-                      <Smile className="w-6 h-6 text-gray-500 hover:text-blue-500 transition-colors" />
-                    </button>
-                  )}
-
-                  {isRecording ? (
-                    <div className="flex-1 flex items-center justify-between px-4 py-2 bg-red-50 border border-red-200 rounded-lg animate-pulse">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
-                        <span className="text-red-600 font-medium text-sm">
-                          Recording Voice Message...
-                        </span>
+                  {/* Input Pill */}
+                  <div className="flex-1 flex flex-col gap-2">
+                    {isRecording ? (
+                      <div className="flex items-center justify-between px-4 py-3 bg-red-50/80 backdrop-blur-sm border border-red-200 rounded-2xl animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                          <span className="text-red-600 font-bold text-sm">
+                            Recording...
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-red-500 font-mono text-xs">
+                            {formatTime(recordingTime)}
+                          </span>
+                          <button
+                            onClick={() => {
+                              capturedDurationRef.current =
+                                formatTime(recordingTime);
+                              setIsRecording(false);
+                              stopRecording();
+                            }}
+                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all shadow-md active:scale-90"
+                          >
+                            <Square className="w-3.5 h-3.5 fill-white" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-red-400 text-xs font-mono">
-                          {formatTime(recordingTime)}
-                        </span>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-white/40 rounded-2xl px-3 py-1.5 shadow-inner transition-all focus-within:bg-white/80 focus-within:shadow-md focus-within:border-blue-200">
                         <button
-                          onClick={() => {
-                            // Save duration BEFORE isRecording becomes false (which resets recordingTime to 0)
-                            capturedDurationRef.current =
-                              formatTime(recordingTime);
-                            setIsRecording(false);
-                            stopRecording();
-                          }}
-                          className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          type="button"
+                          onClick={() => setShowEmojiPicker((prev) => !prev)}
+                          className="p-1.5 hover:bg-black/5 rounded-xl transition-all active:scale-90 text-gray-500 hover:text-blue-500"
                         >
-                          <Square className="w-4 h-4 fill-white" />
+                          <Smile className="w-6 h-6" />
+                        </button>
+
+                        <input
+                          type="text"
+                          placeholder="Type a message..."
+                          value={message}
+                          onChange={(e) => {
+                            setMessage(e.target.value);
+                            if (!socketConnected || !socketRef.current) return;
+                            if (!typingRef.current) {
+                              typingRef.current = true;
+                              socketRef.current.emit("typing", selectedChat);
+                            }
+                            if (typingTimeoutRef.current)
+                              clearTimeout(typingTimeoutRef.current);
+                            typingTimeoutRef.current = setTimeout(() => {
+                              if (typingRef.current && socketRef.current) {
+                                socketRef.current.emit(
+                                  "stop typing",
+                                  selectedChat,
+                                );
+                                typingRef.current = false;
+                              }
+                            }, 3000);
+                          }}
+                          onKeyPress={handleKeyPress}
+                          className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 text-gray-800 placeholder:text-gray-400 outline-none"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRecording(true);
+                            startRecording();
+                          }}
+                          className="p-1.5 hover:bg-black/5 rounded-xl transition-all active:scale-90 text-gray-500 hover:text-red-500"
+                        >
+                          <Mic className="w-6 h-6" />
                         </button>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        type="text"
-                        placeholder="Enter a message..."
-                        value={message}
-                        onChange={(e) => {
-                          setMessage(e.target.value);
-
-                          if (!socketConnected || !socketRef.current) return;
-
-                          // If not already typing, emit event
-                          if (!typingRef.current) {
-                            typingRef.current = true;
-                            socketRef.current.emit("typing", selectedChat);
-                            console.log("SOCKET: Emitted 'typing'");
-                          }
-
-                          // Debounce 'stop typing'
-                          if (typingTimeoutRef.current)
-                            clearTimeout(typingTimeoutRef.current);
-
-                          typingTimeoutRef.current = setTimeout(() => {
-                            if (typingRef.current && socketRef.current) {
-                              socketRef.current.emit(
-                                "stop typing",
-                                selectedChat,
-                              );
-                              typingRef.current = false;
-                              console.log(
-                                "SOCKET: Emitted 'stop typing' (debounced)",
-                              );
-                            }
-                          }, 3000);
-                        }}
-                        onKeyPress={handleKeyPress}
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsRecording(true);
-                          startRecording();
-                        }}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center shrink-0"
-                        title="Record Voice"
-                      >
-                        <Mic className="w-6 h-6 text-gray-500 hover:text-red-500 transition-colors" />
-                      </button>
-                    </>
-                  )}
+                    )}
+                  </div>
 
                   <button
                     onClick={handleSendMessage}
-                    disabled={!message.trim() && !isRecording}
-                    className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                    disabled={(!message.trim() && !isRecording) || isRecording}
+                    className="bg-linear-to-br from-blue-500 to-indigo-600 text-white p-3.5 rounded-2xl hover:shadow-lg hover:shadow-blue-500/30 disabled:from-gray-300 disabled:to-gray-400 disabled:shadow-none transition-all active:scale-90 shadow-xl shrink-0"
                   >
-                    <SendHorizontal />
+                    <SendHorizontal className="w-6 h-6" />
                   </button>
                 </div>
               </div>

@@ -70,13 +70,13 @@ export default function NewGroupModal({
       setSelectedUsers([]);
       setSearchResult([]);
       setSearch("");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const errorMsg =
         error.response?.data?.message || "Failed to Create the Chat!";
       console.error(
         "Group Creation Error Details:",
-        error.response?.data || error
+        error.response?.data || error,
       );
       toast.error(errorMsg);
     }
@@ -85,8 +85,8 @@ export default function NewGroupModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="glass lg:rounded-3xl shadow-2xl w-full max-w-md p-6 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
         <div className="flex items-center justify-between mb-4 shrink-0">
           <h2 className="text-xl font-bold text-gray-800">Create Group Chat</h2>
           <button

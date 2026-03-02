@@ -63,15 +63,17 @@ function SignUp() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-[#456882]">
-      <div className="mt-10 w-[500px]">
+    <div className="flex justify-center items-center min-h-screen bg-linear-to-br from-blue-600 via-indigo-700 to-purple-800 p-4">
+      <div className="mt-10 w-[95%] max-w-[500px]">
         {/* Header */}
-        <div className="border rounded-lg p-3 bg-[#EFECE3]">
-          <h1 className="text-center text-3xl font-semibold">Talk-A-live</h1>
+        <div className="glass rounded-2xl p-6 shadow-2xl mb-6">
+          <h1 className="text-center text-4xl font-black text-gray-800 tracking-tighter uppercase italic">
+            Talk-A-live
+          </h1>
         </div>
 
         {/* Tabs Container */}
-        <div className="border rounded-lg mt-4 bg-[#EFECE3]">
+        <div className="glass rounded-3xl shadow-2xl overflow-hidden">
           {/* Tab Buttons */}
           <div className="flex p-2 gap-2">
             <Link
@@ -83,7 +85,7 @@ function SignUp() {
 
             <Link
               to="/signup"
-              className="w-[50%] p-2 font-medium bg-blue-400 text-black rounded-2xl text-center"
+              className="w-[50%] p-3 font-bold bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-2xl text-center shadow-lg transition-all active:scale-95"
             >
               Sign Up
             </Link>
