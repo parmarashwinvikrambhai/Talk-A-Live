@@ -1,12 +1,26 @@
 import mongoose from "mongoose";
 
 const dbConnect = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI as string);
-        console.log("Database connected Successfully...");
-    } catch (error) {
-       console.error("MongoDB connection failed");
-       process.exit(1); 
+  try {
+    const isProduction = process.env.NODE_ENV === "production";
+    const mongoURI =
+      (isProduction ? process.env.MONGO_URI : process.env.LOCAL_MONGO_URI) ||
+      process.env.MONGO_URI;
+
+    if (!mongoURI) {
+      throw new Error("MongoDB URI is not defined");
     }
-}
+
+    await mongoose.connect(mongoURI);
+
+    if (isProduction) {
+      console.log("🚀 Database connected in PRODUCTION mode...");
+    } else {
+      console.log("💻 Database connected in LOCAL DEVELOPMENT mode...");
+    }
+  } catch (error) {
+    console.error("❌ MongoDB connection failed:", error);
+    process.exit(1);
+  }
+};
 export default dbConnect;

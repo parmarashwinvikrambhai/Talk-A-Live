@@ -17,7 +17,7 @@ dbConnect();
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   }),
 );
@@ -37,7 +37,7 @@ const io = new Server(server, {
   pingTimeout: 60000,
   maxHttpBufferSize: 1e8, // 100MB
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   },
 });
@@ -130,7 +130,7 @@ io.on("connection", (socket: any) => {
         )?.toString();
         if (targetId === senderId) return;
       }
-    console.log(`Sending message to target user: ${targetId}`);
+      console.log(`Sending message to target user: ${targetId}`);
       io.to(targetId).emit("message recieved", newMessageRecieved);
     });
     console.log("=== END NEW MESSAGE ===");

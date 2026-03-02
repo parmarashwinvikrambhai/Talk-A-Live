@@ -28,7 +28,7 @@ import { useReactMediaRecorder } from "react-media-recorder";
 
 import type { User, Chat, Message } from "../types/chat.types";
 
-const ENDPOINT = "http://localhost:4000";
+const ENDPOINT = import.meta.env.VITE_SOCKET_URL || "http://localhost:4000";
 
 function Chat() {
   const navigate = useNavigate();
