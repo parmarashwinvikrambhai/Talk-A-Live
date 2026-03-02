@@ -13,11 +13,25 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 dbConnect();
-
 const app = express();
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+].filter(Boolean) as string[];
+
+console.log("DEBUG: FRONTEND_URL from env:", process.env.FRONTEND_URL);
+console.log("DEBUG: Final Allowed Origins:", allowedOrigins);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps) or if the origin is in our whitelist
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );
@@ -37,7 +51,13 @@ const io = new Server(server, {
   pingTimeout: 60000,
   maxHttpBufferSize: 1e8, // 100MB
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   },
 });

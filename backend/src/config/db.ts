@@ -3,12 +3,15 @@ import mongoose from "mongoose";
 const dbConnect = async () => {
   try {
     const isProduction = process.env.NODE_ENV === "production";
-    const mongoURI = process.env.MONGO_URI || process.env.LOCAL_MONGO_URI;
+    const mongoURI = isProduction
+      ? process.env.MONGO_URI
+      : process.env.LOCAL_MONGO_URI || process.env.MONGO_URI;
 
     if (!mongoURI) {
       throw new Error("MongoDB URI is not defined");
     }
 
+    console.log("DEBUG: Connecting to URI:", mongoURI.split("@").pop());
     await mongoose.connect(mongoURI);
 
     if (isProduction) {
