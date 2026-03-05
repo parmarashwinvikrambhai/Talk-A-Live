@@ -142,3 +142,21 @@ export const removeFromGroup = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message || "Server Error" });
   }
 };
+export const clearChat = async (req: Request, res: Response) => {
+  const { chatId } = req.params;
+  const userId = req.user?.id;
+
+  if (!chatId) {
+    return res.status(400).json({ message: "chatId is required" });
+  }
+
+  try {
+    const updatedChat = await chatRepositories.clearChat(
+      chatId,
+      userId.toString(),
+    );
+    res.status(200).json(updatedChat);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};

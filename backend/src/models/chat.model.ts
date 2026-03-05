@@ -1,11 +1,12 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
-const chatSchema = new mongoose.Schema({
+const chatSchema = new mongoose.Schema(
+  {
     chatName: {
       type: String,
       trim: true,
     },
-      isGroupChat: {
+    isGroupChat: {
       type: Boolean,
       default: false,
     },
@@ -15,7 +16,7 @@ const chatSchema = new mongoose.Schema({
         ref: "User",
       },
     ],
-     latestMessage: {
+    latestMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
     },
@@ -23,7 +24,14 @@ const chatSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-},{ timestamps: true })
+    clearedHistory: {
+      type: Map,
+      of: Date,
+      default: {},
+    },
+  },
+  { timestamps: true },
+);
 
-const Chat = mongoose.model("Chat",chatSchema);
-export default Chat
+const Chat = mongoose.model("Chat", chatSchema);
+export default Chat;

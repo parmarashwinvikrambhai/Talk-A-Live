@@ -27,3 +27,8 @@ export const removeFromGroup = async (chatId: string, userId: string) => {
   const response = await API.put("/chat/group/remove", { chatId, userId });
   return response.data;
 };
+
+export const clearChat = async (chatId: string) => {
+  const response = await API.put(`/chat/clear/${chatId}`);
+  return response.data;
+};

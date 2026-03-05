@@ -90,7 +90,6 @@ const addToGroup = async (chatId: string, userId: string) => {
     .populate("users", "-password")
     .populate("groupAdmin", "-password");
 
-
   if (updated) {
     const userAdded = await User.findById(userId);
     const content = userAdded
@@ -144,10 +143,24 @@ const removeFromGroup = async (chatId: string, userId: string) => {
   return { updatedChat: updated, systemMessage: null };
 };
 
+const clearChat = async (chatId: string, userId: string) => {
+  const chat = await Chat.findById(chatId);
+  if (!chat) throw new Error("Chat not found");
+
+  if (!chat.clearedHistory) {
+    chat.clearedHistory = new Map();
+  }
+
+  chat.clearedHistory.set(userId, new Date());
+  await chat.save();
+  return chat;
+};
+
 export default {
   accessChat,
   fetchChats,
   createGroupChat,
   addToGroup,
   removeFromGroup,
+  clearChat,
 };

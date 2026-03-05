@@ -19,7 +19,7 @@ import ProfileModal from "../components/ProfileModal";
 import NewGroupModal from "../components/NewGroupModal";
 import GroupInfoModal from "../components/GroupInfoModal";
 import { getProfile, searchUsers, LogoutUser } from "../api/auth";
-import { accessChat, fetchChats } from "../api/chat";
+import { accessChat, fetchChats, clearChat } from "../api/chat";
 import { fetchMessages, sendMessage, deleteMessage } from "../api/message";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
@@ -533,6 +533,24 @@ function ChatPage() {
     }
   };
 
+  const handleClearChat = async () => {
+    if (!selectedChat) return;
+
+    const confirmClear = window.confirm(
+      "Are you sure you want to clear this chat? This will hide all current messages for you.",
+    );
+    if (!confirmClear) return;
+
+    try {
+      await clearChat(selectedChat);
+      setMessages([]); // Clear local messages
+      toast.success("Chat history cleared");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not clear chat");
+    }
+  };
+
   // No longer needed: Listeners are now attached once in the singleton effect.
 
   const getSender = (loggedUser: User | null, users: User[]) => {
@@ -1041,15 +1059,24 @@ function ChatPage() {
                     ? selectedChatData.chatName
                     : getSender(loggedUser, selectedChatData.users)}
                 </h2>
-                {selectedChatData.isGroupChat && (
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setIsGroupInfoOpen(true)}
-                    title="View group info"
-                    className="p-3 rounded-2xl hover:bg-black/5 transition-all active:scale-90 shrink-0 glass shadow-sm"
+                    onClick={handleClearChat}
+                    title="Clear Chat"
+                    className="p-3 rounded-2xl hover:bg-red-50 text-gray-500 hover:text-red-500 transition-all active:scale-90 shrink-0 glass shadow-sm border border-transparent hover:border-red-100"
                   >
-                    <Eye className="w-6 h-6 text-gray-700 font-bold" />
+                    <Trash2 className="w-6 h-6" />
                   </button>
-                )}
+                  {selectedChatData.isGroupChat && (
+                    <button
+                      onClick={() => setIsGroupInfoOpen(true)}
+                      title="View group info"
+                      className="p-3 rounded-2xl hover:bg-black/5 transition-all active:scale-90 shrink-0 glass shadow-sm"
+                    >
+                      <Eye className="w-6 h-6 text-gray-700 font-bold" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Chat Messages Area */}
@@ -1143,7 +1170,6 @@ function ChatPage() {
                                       >
                                         <Trash2 size={15} />
                                         Delete for everyone
-
                                       </button>
                                     </div>
                                   )}

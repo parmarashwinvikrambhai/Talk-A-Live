@@ -53,8 +53,18 @@ export const sendMessage = async (
   return newMessage;
 };
 
-export const allMessages = async (chatId: string) => {
-  const messages = await Message.find({ chat: chatId })
+export const allMessages = async (chatId: string, userId: string) => {
+  const chat = await Chat.findById(chatId);
+  if (!chat) throw new Error("Chat not found");
+
+  const clearedAt = chat.clearedHistory?.get(userId);
+  const filter: any = { chat: chatId };
+
+  if (clearedAt) {
+    filter.createdAt = { $gt: clearedAt };
+  }
+
+  const messages = await Message.find(filter)
     .populate("sender", "name profilePic email")
     .populate("chat");
   return messages;

@@ -6,6 +6,7 @@ import {
   createGroupChat,
   addToGroup,
   removeFromGroup,
+  clearChat,
 } from "../controllers/chat.controller";
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.get("/", isAuthorizedUser, fetchChats);
 router.post("/group", isAuthorizedUser, createGroupChat);
 router.put("/group/add", isAuthorizedUser, addToGroup);
 router.put("/group/remove", isAuthorizedUser, removeFromGroup);
+router.put("/clear/:chatId", isAuthorizedUser, clearChat);
 
 export default router;

@@ -44,6 +44,7 @@ export const allMessages = async (req: Request, res: Response) => {
   try {
     const messages = await messageRepositories.allMessages(
       req.params.chatId as string,
+      req.user?.id as string,
     );
     res.json(messages);
   } catch (error: any) {
