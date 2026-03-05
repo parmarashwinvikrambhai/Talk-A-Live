@@ -50,6 +50,7 @@ function ChatPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [deleteMenuOpenId, setDeleteMenuOpenId] = useState<string | null>(null);
+  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
   const {
     status: recordingStatus,
@@ -535,23 +536,22 @@ function ChatPage() {
 
   const handleClearChat = async () => {
     if (!selectedChat) return;
-
-    const confirmClear = window.confirm(
-      "Are you sure you want to clear this chat? This will hide all current messages for you.",
-    );
-    if (!confirmClear) return;
-
-    try {
-      await clearChat(selectedChat);
-      setMessages([]); // Clear local messages
-      toast.success("Chat history cleared");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Could not clear chat");
-    }
+    setIsClearChatModalOpen(true);
   };
 
-  // No longer needed: Listeners are now attached once in the singleton effect.
+  const confirmClearChat = async () => {
+    if (!selectedChat) return;
+    try {
+      await clearChat(selectedChat);
+      setMessages([]);
+      toast.success("Chat history cleared");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not clear chat");
+    } finally {
+      setIsClearChatModalOpen(false);
+    }
+  };
 
   const getSender = (loggedUser: User | null, users: User[]) => {
     return users[0]?._id === loggedUser?._id ? users[1]?.name : users[0]?.name;
@@ -700,7 +700,6 @@ function ChatPage() {
   };
 
   const handleAccessChat = async (userId: string) => {
-    console.log("Accessing chat for userId:", userId);
     try {
       const data = await accessChat(userId);
       console.log("Chat data received:", data);
@@ -727,9 +726,7 @@ function ChatPage() {
       }
 
       try {
-        console.log("CHAT: Sending message to API...");
         const data = await sendMessage(content, selectedChat);
-        console.log("CHAT: Message sent successfully, data:", data);
 
         if (socketRef.current?.connected && data && data.chat) {
           console.log("CHAT: Emitting 'new message' to socket...");
@@ -1051,9 +1048,9 @@ function ChatPage() {
                 <h2 className="text-xl font-black text-gray-800 flex gap-4 items-center tracking-tight">
                   <button
                     onClick={() => setSelectedChat(null)}
-                    className="lg:hidden hover:bg-gray-200 p-1 rounded transition-colors"
+                    className="lg:hidden hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                   {selectedChatData.isGroupChat
                     ? selectedChatData.chatName
@@ -1063,17 +1060,17 @@ function ChatPage() {
                   <button
                     onClick={handleClearChat}
                     title="Clear Chat"
-                    className="p-3 rounded-2xl hover:bg-red-50 text-gray-500 hover:text-red-500 transition-all active:scale-90 shrink-0 glass shadow-sm border border-transparent hover:border-red-100"
+                    className="p-2.5 rounded-xl hover:bg-red-50 text-gray-500 hover:text-red-500 transition-all active:scale-90 shrink-0 glass shadow-sm border border-transparent hover:border-red-100"
                   >
-                    <Trash2 className="w-6 h-6" />
+                    <Trash2 size={17} />
                   </button>
                   {selectedChatData.isGroupChat && (
                     <button
                       onClick={() => setIsGroupInfoOpen(true)}
                       title="View group info"
-                      className="p-3 rounded-2xl hover:bg-black/5 transition-all active:scale-90 shrink-0 glass shadow-sm"
+                      className="p-2.5 rounded-xl hover:bg-black/5 transition-all active:scale-90 shrink-0 glass shadow-sm"
                     >
-                      <Eye className="w-6 h-6 text-gray-700 font-bold" />
+                      <Eye className="w-5 h-5 text-gray-700 font-bold" />
                     </button>
                   )}
                 </div>
@@ -1529,6 +1526,40 @@ function ChatPage() {
                 className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors font-medium"
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Chat Confirmation Modal */}
+      {isClearChatModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-gray-100 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6 shadow-sm">
+              <Trash2 className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">
+              Clear Chat?
+            </h3>
+            <p className="text-gray-500 mb-8 text-sm leading-relaxed">
+              Are you sure you want to clear this chat? This will hide all
+              current messages for you. This action cannot be undone.
+            </p>
+            <div className="flex flex-col-reverse sm:flex-row gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setIsClearChatModalOpen(false)}
+                className="flex-1 px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-all font-semibold text-sm border border-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmClearChat}
+                className="flex-1 px-4 py-3 bg-red-500 text-white hover:bg-red-600 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-200"
+              >
+                Clear Chat
               </button>
             </div>
           </div>

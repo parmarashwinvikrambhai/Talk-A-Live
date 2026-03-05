@@ -10,5 +10,8 @@ const router = express_1.default.Router();
 router.post("/", auth_middleware_1.isAuthorizedUser, chat_controller_1.accessChat);
 router.get("/", auth_middleware_1.isAuthorizedUser, chat_controller_1.fetchChats);
 router.post("/group", auth_middleware_1.isAuthorizedUser, chat_controller_1.createGroupChat);
+router.put("/group/add", auth_middleware_1.isAuthorizedUser, chat_controller_1.addToGroup);
+router.put("/group/remove", auth_middleware_1.isAuthorizedUser, chat_controller_1.removeFromGroup);
+router.put("/clear/:chatId", auth_middleware_1.isAuthorizedUser, chat_controller_1.clearChat);
 exports.default = router;
 //# sourceMappingURL=chat.route.js.map

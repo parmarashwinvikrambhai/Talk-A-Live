@@ -9,5 +9,6 @@ const message_controller_1 = require("../controllers/message.controller");
 const router = express_1.default.Router();
 router.post("/", auth_middleware_1.isAuthorizedUser, message_controller_1.sendMessage);
 router.get("/:chatId", auth_middleware_1.isAuthorizedUser, message_controller_1.allMessages);
+router.delete("/:messageId", auth_middleware_1.isAuthorizedUser, message_controller_1.deleteMessage);
 exports.default = router;
 //# sourceMappingURL=message.route.js.map

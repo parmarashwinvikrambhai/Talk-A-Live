@@ -91,16 +91,16 @@ const ProfileModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="glass lg:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white lg:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
         {/* Header */}
         <div className="relative flex items-center justify-center p-4">
-          <h2 className="text-xl font-bold text-gray-800">My Profile</h2>
+          <h2 className="text-xl font-bold">My Profile</h2>
 
           <button
             onClick={onClose}
             className="absolute right-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="w-6 h-6 text-gray-500" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
@@ -168,7 +168,7 @@ const ProfileModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-gray-50 flex justify-end">
+        <div className="p-4 flex justify-end">
           <button
             onClick={onClose}
             className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors shadow-sm"

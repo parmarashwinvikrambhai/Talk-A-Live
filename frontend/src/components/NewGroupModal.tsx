@@ -86,7 +86,7 @@ export default function NewGroupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="glass lg:rounded-3xl shadow-2xl w-full max-w-md p-6 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+      <div className="bg-white lg:rounded-3xl shadow-2xl w-full max-w-md p-6 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
         <div className="flex items-center justify-between mb-4 shrink-0">
           <h2 className="text-xl font-bold text-gray-800">Create Group Chat</h2>
           <button

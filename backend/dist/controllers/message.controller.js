@@ -42,27 +42,42 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.allMessages = exports.sendMessage = void 0;
+exports.deleteMessage = exports.allMessages = exports.sendMessage = void 0;
 const messageRepositories = __importStar(require("../repositories/message.repositories"));
 const sendMessage = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const { content, chatId } = req.body;
-    if (!content || !chatId) {
-        console.log("Invalid data passed into request");
+    const { content, chatId, isAudio, duration } = req.body;
+    // Use a more robust check for boolean isAudio
+    const isAudioMessage = isAudio === true || isAudio === "true";
+    console.log("=== BACKEND SEND_MESSAGE START ===");
+    console.log("Full req.body:", {
+        chatId,
+        contentLength: content ? content.length : 0,
+        isAudio: isAudio,
+        isAudioType: typeof isAudio,
+        isAudioMessageResult: isAudioMessage,
+        duration,
+    });
+    if (!chatId || (!content && !isAudioMessage)) {
+        console.log("Validation failed: missing chatId or (content and isAudioMessage)");
         return res.sendStatus(400);
     }
     try {
-        const message = yield messageRepositories.sendMessage((_a = req.user) === null || _a === void 0 ? void 0 : _a.id, content, chatId);
+        const message = yield messageRepositories.sendMessage((_a = req.user) === null || _a === void 0 ? void 0 : _a.id, content, chatId, isAudioMessage, duration);
+        console.log("Message successfully created and returning to client");
         res.json(message);
     }
     catch (error) {
+        console.error("Error in sendMessage controller:", error.message);
         res.status(400).json({ message: error.message });
     }
+    console.log("=== BACKEND SEND_MESSAGE END ===");
 });
 exports.sendMessage = sendMessage;
 const allMessages = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const messages = yield messageRepositories.allMessages(req.params.chatId);
+        const messages = yield messageRepositories.allMessages(req.params.chatId, (_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
         res.json(messages);
     }
     catch (error) {
@@ -70,4 +85,38 @@ const allMessages = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.allMessages = allMessages;
+const deleteMessage = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    try {
+        const messageId = req.params.messageId;
+        const requesterId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        if (!requesterId) {
+            return res
+                .status(401)
+                .json({ message: "User identity missing from token" });
+        }
+        const deletedMessage = yield messageRepositories.deleteMessage(messageId, requesterId);
+        if (!deletedMessage) {
+            console.log("CONTROLLER DELETE ERROR: Repository returned null");
+            return res.status(404).json({ message: "Message not found" });
+        }
+        // Emit real-time event to all users in the chat
+        const io = req.app.get("io");
+        const chat = deletedMessage.chat;
+        if (io && (chat === null || chat === void 0 ? void 0 : chat.users)) {
+            chat.users.forEach((user) => {
+                const targetId = (user._id || user.id || user).toString();
+                io.to(targetId).emit("message deleted", deletedMessage);
+            });
+        }
+        res.json(deletedMessage);
+    }
+    catch (error) {
+        console.error("CONTROLLER DELETE CRITICAL ERROR:", error.message);
+        res
+            .status(((_b = error.message) === null || _b === void 0 ? void 0 : _b.includes("only delete your own")) ? 403 : 400)
+            .json({ message: error.message });
+    }
+});
+exports.deleteMessage = deleteMessage;
 //# sourceMappingURL=message.controller.js.map

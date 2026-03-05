@@ -125,14 +125,14 @@ export const removeFromGroup = async (req: Request, res: Response) => {
       fullMessage.chat = updatedChat; // Attach chat details for socket listeners
 
       console.log(`EMIT: Notifying members of leave in chat ${chatId}`);
-      // 1. Notify remaining members
+      // Notify remaining members
       updatedChat.users.forEach((u: any) => {
         const targetId = (u._id || u.id || u).toString();
         console.log(`EMIT: Sending to remaining member ${targetId}`);
         io.to(targetId).emit("message recieved", fullMessage);
       });
 
-      // 2. IMPORTANT: Notify the user who was just removed/left!
+      //Notify the user who was just removed/left!
       console.log(`EMIT: Sending to removed user ${userId}`);
       io.to(userId.toString()).emit("message recieved", fullMessage);
     }
@@ -146,13 +146,15 @@ export const clearChat = async (req: Request, res: Response) => {
   const { chatId } = req.params;
   const userId = req.user?.id;
 
-  if (!chatId) {
-    return res.status(400).json({ message: "chatId is required" });
+  if (!chatId || !userId) {
+    return res
+      .status(400)
+      .json({ message: "chatId and authenticated userId are required" });
   }
 
   try {
     const updatedChat = await chatRepositories.clearChat(
-      chatId,
+      chatId as string,
       userId.toString(),
     );
     res.status(200).json(updatedChat);
