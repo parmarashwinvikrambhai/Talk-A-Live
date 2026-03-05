@@ -19,3 +19,8 @@ export const fetchMessages = async (chatId: string) => {
   const response = await API.get(`/message/${chatId}`);
   return response.data;
 };
+
+export const deleteMessage = async (messageId: string) => {
+  const response = await API.delete(`/message/${messageId}`);
+  return response.data;
+};

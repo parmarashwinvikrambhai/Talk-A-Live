@@ -12,6 +12,7 @@ import {
   Play,
   Pause,
   Volume2,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProfileModal from "../components/ProfileModal";
@@ -19,7 +20,7 @@ import NewGroupModal from "../components/NewGroupModal";
 import GroupInfoModal from "../components/GroupInfoModal";
 import { getProfile, searchUsers, LogoutUser } from "../api/auth";
 import { accessChat, fetchChats } from "../api/chat";
-import { fetchMessages, sendMessage } from "../api/message";
+import { fetchMessages, sendMessage, deleteMessage } from "../api/message";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
@@ -47,6 +48,8 @@ function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [deleteMenuOpenId, setDeleteMenuOpenId] = useState<string | null>(null);
 
   const {
     status: recordingStatus,
@@ -448,6 +451,33 @@ function ChatPage() {
       socketInstance.on("connect_error", (err) =>
         console.error("SOCKET: Error:", err),
       );
+
+      // --- MESSAGE DELETED listener ---
+      socketInstance.on("message deleted", (deletedMsg: Message) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._id === deletedMsg._id
+              ? { ...m, isDeleted: true, content: "", isAudio: false }
+              : m,
+          ),
+        );
+        // Update latest message preview in chat list if needed
+        setAllChats((prev) =>
+          prev.map((c) => {
+            if (c.latestMessage && c.latestMessage._id === deletedMsg._id) {
+              return {
+                ...c,
+                latestMessage: {
+                  ...c.latestMessage,
+                  isDeleted: true,
+                  content: "",
+                },
+              };
+            }
+            return c;
+          }),
+        );
+      });
     }
 
     return () => {}; // Singleton, no cleanup on re-render
@@ -464,6 +494,44 @@ function ChatPage() {
       }
     };
   }, []);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    setDeleteMenuOpenId(null);
+    try {
+      const deletedMsg = await deleteMessage(messageId);
+      // Update local state immediately for sender
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId
+            ? { ...m, isDeleted: true, content: "", isAudio: false }
+            : m,
+        ),
+      );
+      // Update chat list preview
+      setAllChats((prev) =>
+        prev.map((c) => {
+          if (c.latestMessage && c.latestMessage._id === messageId) {
+            return {
+              ...c,
+              latestMessage: {
+                ...c.latestMessage,
+                isDeleted: true,
+                content: "",
+              },
+            };
+          }
+          return c;
+        }),
+      );
+      // Broadcast to others via socket
+      if (socketRef.current?.connected && deletedMsg?.chat) {
+        socketRef.current.emit("message deleted", deletedMsg);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not delete message");
+    }
+  };
 
   // No longer needed: Listeners are now attached once in the singleton effect.
 
@@ -1017,9 +1085,14 @@ function ChatPage() {
                         return (
                           <div
                             key={msg._id}
-                            className={`flex items-end gap-2 ${
+                            className={`flex items-end gap-2 group relative ${
                               isMe ? "justify-end" : "justify-start"
                             }`}
+                            onMouseEnter={() => setHoveredMessageId(msg._id)}
+                            onMouseLeave={() => {
+                              setHoveredMessageId(null);
+                              setDeleteMenuOpenId(null);
+                            }}
                           >
                             {!isMe && (
                               <div className="shrink-0 mb-1">
@@ -1040,6 +1113,43 @@ function ChatPage() {
                               </div>
                             )}
 
+                            {/* Delete button — only for sender, only on hover */}
+                            {isMe &&
+                              !msg.isDeleted &&
+                              hoveredMessageId === msg._id && (
+                                <div className="relative flex items-center mb-1 order-first">
+                                  <button
+                                    onClick={() =>
+                                      setDeleteMenuOpenId(
+                                        deleteMenuOpenId === msg._id
+                                          ? null
+                                          : msg._id,
+                                      )
+                                    }
+                                    className="w-7 h-7 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
+                                    title="Message options"
+                                  >
+                                    <span className="text-base leading-none">
+                                      ⋮
+                                    </span>
+                                  </button>
+                                  {deleteMenuOpenId === msg._id && (
+                                    <div className="absolute bottom-9 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-xl text-sm min-w-[150px] overflow-hidden">
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteMessage(msg._id)
+                                        }
+                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-red-500 hover:bg-red-50 transition-colors font-medium text-xs"
+                                      >
+                                        <Trash2 size={15} />
+                                        Delete for everyone
+
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                             <div
                               className={`px-4 py-3 rounded-2xl max-w-[85%] lg:max-w-[70%] shadow-xl transition-all hover:shadow-2xl ${
                                 isMe
@@ -1055,15 +1165,20 @@ function ChatPage() {
                                 {isMe ? "You" : msg.sender?.name || "User"}
                               </p>
 
-                              {msg.isAudio ||
-                              msg.content?.startsWith("data:audio") ? (
+                              {/* DELETED MESSAGE UI */}
+                              {msg.isDeleted ? (
+                                <p
+                                  className={`text-sm italic ${
+                                    isMe ? "text-blue-200/70" : "text-gray-400"
+                                  }`}
+                                >
+                                  🚫 This message was deleted
+                                </p>
+                              ) : msg.isAudio ||
+                                msg.content?.startsWith("data:audio") ? (
                                 <div className="flex items-center gap-3 py-1 min-w-[200px]">
                                   <button
                                     onClick={() => {
-                                      console.log(
-                                        "CHAT: Play button clicked for message:",
-                                        msg._id,
-                                      );
                                       setActiveAudioId(
                                         activeAudioId === msg._id
                                           ? null
@@ -1148,7 +1263,7 @@ function ChatPage() {
                                     minute: "2-digit",
                                   },
                                 )}
-                                {isMe && (
+                                {isMe && !msg.isDeleted && (
                                   <CheckCheck className="w-3.5 h-3.5 inline ml-1 opacity-80" />
                                 )}
                               </p>

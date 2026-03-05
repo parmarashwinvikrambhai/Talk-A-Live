@@ -59,3 +59,42 @@ export const allMessages = async (chatId: string) => {
     .populate("chat");
   return messages;
 };
+
+export const deleteMessage = async (messageId: string, requesterId: string) => {
+  const message = await Message.findById(messageId).populate("chat");
+  if (!message) throw new Error("Message not found");
+
+  // Only the sender can delete
+  const senderId = String(message.sender);
+  const reqId = String(requesterId);
+
+  if (senderId !== reqId) {
+    console.log(
+      "DEBUG DELETE: AUTHORIZATION FAILED - mismatch between",
+      senderId,
+      "and",
+      reqId,
+    );
+    throw new Error("You can only delete your own messages");
+  }
+  // Soft delete: wipe content, set isDeleted flag
+  message.content = "This message was deleted";
+  message.isDeleted = true as any;
+  await message.save();
+
+  // Re-populate for socket broadcast
+  let populated = await Message.findById(messageId)
+    .populate("sender", "name profilePic email")
+    .populate("chat");
+
+  if (!populated) {
+    throw new Error("Message lost after update");
+  }
+
+  populated = (await User.populate(populated, {
+    path: "chat.users",
+    select: "name profilePic email",
+  })) as unknown as typeof populated;
+
+  return populated;
+};

@@ -23,6 +23,7 @@ export interface Message {
   chat: Chat;
   isAudio?: boolean;
   duration?: string;
+  isDeleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }

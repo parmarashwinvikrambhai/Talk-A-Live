@@ -50,3 +50,43 @@ export const allMessages = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const deleteMessage = async (req: Request, res: Response) => {
+  try {
+    const messageId = req.params.messageId as string;
+    const requesterId = req.user?.id as string;
+
+    if (!requesterId) {
+      return res
+        .status(401)
+        .json({ message: "User identity missing from token" });
+    }
+
+    const deletedMessage = await messageRepositories.deleteMessage(
+      messageId,
+      requesterId,
+    );
+
+    if (!deletedMessage) {
+      console.log("CONTROLLER DELETE ERROR: Repository returned null");
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Emit real-time event to all users in the chat
+    const io = req.app.get("io");
+    const chat = deletedMessage.chat as any;
+    if (io && chat?.users) {
+      chat.users.forEach((user: any) => {
+        const targetId = (user._id || user.id || user).toString();
+        io.to(targetId).emit("message deleted", deletedMessage);
+      });
+    }
+
+    res.json(deletedMessage);
+  } catch (error: any) {
+    console.error("CONTROLLER DELETE CRITICAL ERROR:", error.message);
+    res
+      .status(error.message?.includes("only delete your own") ? 403 : 400)
+      .json({ message: error.message });
+  }
+};

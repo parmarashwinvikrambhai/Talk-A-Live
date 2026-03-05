@@ -7,6 +7,7 @@ const messageSchema = new mongoose.Schema(
     chat: { type: mongoose.Schema.Types.ObjectId, ref: "Chat" },
     isAudio: { type: Boolean, default: false },
     duration: { type: String },
+    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

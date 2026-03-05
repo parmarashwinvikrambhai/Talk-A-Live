@@ -24,7 +24,6 @@ console.log("Allowed Origins for CORS (DEBUG):", allowedOrigins);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps) or if the origin is in our whitelist
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
